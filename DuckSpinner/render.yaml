@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: Duckspinner
+    name: duckspinner
     env: python
     buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
     startCommand: gunicorn duckspinner.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120
