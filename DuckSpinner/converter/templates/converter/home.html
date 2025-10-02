@@ -301,16 +301,29 @@
                 <div class="selected-file" id="file-name"></div>
             </div>
             <div class="output-name-container">
-                <label for="output-name" class="output-name-label">PDF Dosya Adı</label>
+                <label for="output-name" class="output-name-label">Dosya Adı</label>
                 <input type="text" name="output_name" id="output-name" class="output-name-input" placeholder="Örnek: rapor">
+            </div>
+            <div class="output-format-container" style="margin-top: 20px; background-color: rgba(255, 255, 255, 0.7); padding: 15px; border-radius: 8px; text-align: center; border: 1px solid rgba(233, 30, 99, 0.18);">
+                <label class="output-name-label">Çıktı Formatı</label>
+                <div style="display: flex; justify-content: center; gap: 20px; margin-top: 10px;">
+                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                        <input type="radio" name="output_format" value="pdf" checked style="margin: 0;">
+                        <span>PDF</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                        <input type="radio" name="output_format" value="word" style="margin: 0;">
+                        <span>Word</span>
+                    </label>
+                </div>
             </div>
             <div class="button-container" style="display: flex; justify-content: center; gap: 20px; margin-top: 20px;">
                 <button type="submit" class="submit-btn btn-primary" style="margin: 0;" onclick="this.form.with_images.value='false'">
-                    <span style="display: block;">Normal PDF'e Dönüştür</span>
+                    <span style="display: block;">Normal Dönüştür</span>
                     <span style="font-size: 0.8em; display: block;">(Sadece Metin)</span>
                 </button>
                 <button type="submit" class="submit-btn btn-pink" style="margin: 0;" onclick="this.form.with_images.value='true'">
-                    <span style="display: block;">Resimli PDF'e Dönüştür</span>
+                    <span style="display: block;">Resimli Dönüştür</span>
                     <span style="font-size: 0.8em; display: block;">(Resim + Metin)</span>
                 </button>
             </div>
