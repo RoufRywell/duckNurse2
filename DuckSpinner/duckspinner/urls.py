@@ -15,16 +15,22 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from converter import views
 from django.conf import settings
 from django.conf.urls.static import static
+# 👇 Bu import'u ekleyin
+from django.contrib.staticfiles.urls import staticfiles_urlpatterns 
+from converter import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', views.home, name='home'),  # Ana sayfa için root URL
 ]
 
-# Static ve media dosyaları için URL yapılandırması
+# 👇 Geliştirme ortamında (DEBUG=True) statik dosyaları sunmak için bu blok kullanılır.
 if settings.DEBUG:
-    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+    # 1. Bu fonksiyon, INSTALLED_APPS içindeki tüm uygulamaların (converter dahil) 
+    #    'static/' klasörlerini tarar ve URL'lerini oluşturur. (Sizin resimlerinizi sunar!)
+    urlpatterns += staticfiles_urlpatterns() 
+
+    # 2. Media dosyalarını sunar (Kullanıcı tarafından yüklenen dosyalar için gereklidir).
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

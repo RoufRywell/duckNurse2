@@ -2,375 +2,307 @@ from django.shortcuts import render
 from django.http import HttpResponse, FileResponse
 from django.core.files.storage import FileSystemStorage
 from docx import Document
-from docx.shared import Inches 
-from docx.enum.text import WD_ALIGN_PARAGRAPH 
-from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
 from reportlab.pdfbase import pdfmetrics
-from reportlab.lib.enums import TA_JUSTIFY
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Image, Table, TableStyle
-from reportlab.lib.units import inch, mm
-from reportlab.lib import colors 
+from reportlab.lib.units import inch
 from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 from PyPDF2 import PdfReader
-import fitz # PyMuPDF
 import os
 import io
 import re
-import unicodedata
-import shutil 
-from collections import defaultdict # Tekrar eden metinleri saymak için eklendi
+from PIL import Image as PILImage
+import fitz  # PyMuPDF
 
-# =========================================================================
-# YENİ EKLENEN KISIM: TÜRKÇE KARAKTER DESTEĞİ İÇİN FONT KAYDI
-# =========================================================================
-from reportlab.pdfbase.ttfonts import TTFont # Yeni import
-
-# Times New Roman TTF dosyasını ReportLab'e kaydet
-# NOT: 'TimesNewRoman.ttf' dosyasının Reportlab'in erişebileceği bir dizinde (tercihen manage.py'nin yanında) olması gerekir.
-try:
-    pdfmetrics.registerFont(TTFont('TimesNewRoman', 'TimesNewRoman.ttf'))
-except Exception as e:
-    # Font dosyası bulunamazsa, siyah nokta hatası devam edebilir.
-    # Kullanıcıya hata döndürmek yerine, varsayılan Times-Roman'a düşeriz.
-    print(f"UYARI: TimesNewRoman.ttf yüklenemedi. Türkçe karakter sorunu oluşabilir. Hata: {e}")
-
-# =========================================================================
-# YUKARIDAN İTİBAREN KODUN KALANI DEVAM EDİYOR
-# =========================================================================
-
-# --- GENEL TEMİZLEME FONKSİYONU ---
-
-def _clean_document_text_general(all_page_texts: list[str]) -> list[str]:
-    """
-    Sayfalar arası tekrar eden altbilgi/üstbilgi metinlerini genel bir mantıkla temizler.
-    
-    Args:
-        all_page_texts: Her sayfadan çıkarılan ham metinlerin listesi.
-        
-    Returns:
-        Her sayfanın temizlenmiş metin listesi.
-    """
-    if not all_page_texts:
-        return []
-
-    # 1. Dokümandaki tüm benzersiz kısa metin parçalarını topla
-    min_len = 5 
-    max_len = 100 
-    repeat_threshold = 0.35 
-    
-    potential_junk = defaultdict(int)
-    total_pages = len(all_page_texts)
-    if total_pages == 0:
-        return []
-
-    for page_text in all_page_texts:
-        lines = [re.sub(r'\s+', ' ', line).strip() for line in page_text.split('\n') if line.strip()]
-        
-        counted_on_page = set()
-        for line in lines:
-            if min_len <= len(line) <= max_len and len(line.split()) < 20: 
-                if line not in counted_on_page:
-                    potential_junk[line] += 1
-                    counted_on_page.add(line)
-
-    # 2. Tekrar eden (junk) metinleri tespit et
-    junk_set = {
-        text for text, count in potential_junk.items() 
-        if count / total_pages > repeat_threshold 
+def fix_text_formatting(text):
+    """Metni düzeltir ve kelime birleştirme sorunlarını çözer."""
+    # Yaygın kelime birleştirme sorunlarını düzelt
+    replacements = {
+        r'\bthe\b': ' the ',
+        r'\band\b': ' and ',
+        r'\ban\b': ' an ',
+        r'\ba\b': ' a ',
+        r'\bof\b': ' of ',
+        r'\bin\b': ' in ',
+        r'\bon\b': ' on ',
+        r'\bat\b': ' at ',
+        r'\bto\b': ' to ',
+        r'\bfor\b': ' for ',
+        r'\bwith\b': ' with ',
+        r'\bby\b': ' by ',
+        r'\bfrom\b': ' from ',
+        r'\bas\b': ' as ',
+        r'\bis\b': ' is ',
+        r'\bare\b': ' are ',
+        r'\bwas\b': ' was ',
+        r'\bwere\b': ' were ',
+        r'\bbe\b': ' be ',
+        r'\bhave\b': ' have ',
+        r'\bhas\b': ' has ',
+        r'\bhad\b': ' had ',
+        r'\bdo\b': ' do ',
+        r'\bdoes\b': ' does ',
+        r'\bdid\b': ' did ',
+        r'\bwill\b': ' will ',
+        r'\bwould\b': ' would ',
+        r'\bshall\b': ' shall ',
+        r'\bshould\b': ' should ',
+        r'\bcan\b': ' can ',
+        r'\bcould\b': ' could ',
+        r'\bmay\b': ' may ',
+        r'\bmight\b': ' might ',
+        r'\bmust\b': ' must ',
     }
     
-    # 3. Temizlenmiş metinleri oluştur
-    cleaned_page_texts = []
+    for pattern, replacement in replacements.items():
+        text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
     
-    for page_text in all_page_texts:
-        lines = [line.strip() for line in page_text.split('\n') if line.strip()]
-        
-        filtered_lines = []
-        for line in lines:
-            line_normalized = re.sub(r'\s+', ' ', line).strip()
-            
-            is_junk = False
-            for junk in junk_set:
-                if junk in line_normalized and len(line_normalized) < 2 * len(junk):
-                    is_junk = True
-                    break
-            
-            if line_normalized.isdigit() and len(line_normalized) <= 4:
-                is_junk = True
-            
-            if not is_junk:
-                filtered_lines.append(line_normalized)
-
-        cleaned_page_texts.append(' '.join(filtered_lines))
-        
-    return cleaned_page_texts
-
-# --- METİN ÇIKARMA FONKSİYONLARI ---
+    # Fazla boşlukları temizle
+    text = re.sub(r'\s+', ' ', text)
+    return text.strip()
 
 def extract_text_from_word(file_path):
+    """Word dosyasından metni çıkarır."""
     try:
         doc = Document(file_path)
-        text_parts = [paragraph.text.strip() for paragraph in doc.paragraphs if paragraph.text.strip()]
-        
-        all_pages_temp = ['\n'.join(text_parts)] 
-        cleaned_page_texts = _clean_document_text_general(all_pages_temp)
-        
-        return "\n\n".join(cleaned_page_texts) if cleaned_page_texts else ""
+        text = []
+        for paragraph in doc.paragraphs:
+            if paragraph.text.strip():
+                text.append(fix_text_formatting(paragraph.text.strip()))
+        return "\n\n".join(text)
     except Exception as e:
         return str(e)
 
 def extract_text_from_powerpoint(file_path):
+    """PowerPoint dosyasından metni çıkarır."""
     try:
         prs = Presentation(file_path)
-        all_page_texts = []
-        
+        text = []
+
         for slide in prs.slides:
-            slide_text_parts = []
             for shape in slide.shapes:
-                if hasattr(shape, "text") and shape.text:
-                    slide_text_parts.append('\n'.join([line.strip() for line in shape.text.split('\n') if line.strip()]))
-            
-            all_page_texts.append('\n'.join(slide_text_parts))
-            
-        cleaned_page_texts = _clean_document_text_general(all_page_texts)
-                
-        return "\n\n".join(cleaned_page_texts)
+                if hasattr(shape, "text"):
+                    if shape.text.strip():
+                        text.append(fix_text_formatting(shape.text.strip()))
+
+        return "\n\n".join(text)
     except Exception as e:
         return str(e)
 
 def extract_text_from_pdf(file_path):
+    """PDF dosyasından metni çıkarır."""
     try:
         reader = PdfReader(file_path)
-        all_page_texts = []
-        
+        text = []
         for page in reader.pages:
             content = page.extract_text()
-            if content:
-                all_page_texts.append(content)
-                
-        cleaned_page_texts = _clean_document_text_general(all_page_texts)
-                    
-        return "\n\n".join(cleaned_page_texts)
+            if content.strip():
+                text.append(fix_text_formatting(content.strip()))
+        return "\n\n".join(text)
     except Exception as e:
         return str(e)
 
-# --- DİĞER FONKSİYONLAR (DEĞİŞMEDİ) ---
-
-def normalize_text(raw_text: str) -> str:
-    text = unicodedata.normalize('NFC', raw_text or "")
-    replacements = {
-        '\u00A0': ' ', '\u00AD': '', 
-        '•': '-', '◦': '-', '●': '-', '▪': '-', '–': '-', '—': '-', '·': '-', '': '-',
-        '“': '"', '”': '"', '‟': '"', '’': "'", '‘': "'",
-    }
-    for k, v in replacements.items():
-        text = text.replace(k, v)
-    text = re.sub(r'([.,;:!?])(?!\s)', r"\1 ", text)
-    text = re.sub(r'(?<=[a-zçğıöşü])(?=[A-ZÇĞİÖŞÜ])', ' ', text)
-    text = re.sub(r'(?<=[A-Za-zÇĞİÖŞÜçğıöşü])(?=\d)', ' ', text)
-    text = re.sub(r'(?<=\d)(?=[A-Za-zÇĞİÖŞÜçğıöşü])', ' ', text)
-    text = re.sub(r'[ \t\x0b\f\r]+', ' ', text)
-    text = re.sub(r'\n\s*\n', '\n\n', text)
-    return text.strip()
-
 def extract_images_from_powerpoint(file_path):
+    """PowerPoint'ten resimleri çıkarır."""
     try:
         prs = Presentation(file_path)
         images = []
         temp_dir = os.path.join(os.path.dirname(file_path), 'temp_images')
         os.makedirs(temp_dir, exist_ok=True)
         
-        for slide in prs.slides:
+        for slide_number, slide in enumerate(prs.slides):
             for shape in slide.shapes:
                 if shape.shape_type == MSO_SHAPE_TYPE.PICTURE:
-                    image = shape.image
-                    image_bytes = image.blob
-                    image_path = os.path.join(temp_dir, f'image_{len(images)}.png')
-                    with open(image_path, 'wb') as f:
-                        f.write(image_bytes)
-                    images.append(image_path)
-        return images
-    except Exception as e:
-        return []
-
-def extract_images_from_word(file_path):
-    """Word dosyasından resimleri çıkar"""
-    try:
-        doc = Document(file_path)
-        images = []
-        temp_dir = os.path.join(os.path.dirname(file_path), 'temp_images')
-        os.makedirs(temp_dir, exist_ok=True)
+                    try:
+                        image_path = os.path.join(temp_dir, f'slide_{slide_number}.png')
+                        with open(image_path, 'wb') as f:
+                            f.write(shape.image.blob)
+                        images.append(image_path)
+                    except Exception as shape_error:
+                        print(f"Resim işlenirken hata: {shape_error}")
+                        continue
         
-        for rel in doc.part.rels.values():
-            if "image" in rel.target_ref:
-                try:
-                    image_data = rel.target_part.blob
-                    image_path = os.path.join(temp_dir, f'word_image_{len(images)}.png')
-                    with open(image_path, 'wb') as f:
-                        f.write(image_data)
-                    images.append(image_path)
-                except:
-                    continue
         return images
     except Exception as e:
+        print(f"PowerPoint'ten resim çıkarılırken hata: {e}")
         return []
 
 def extract_images_from_pdf(file_path):
-    """PDF dosyasından resimleri çıkar"""
+    """PDF'ten resimleri çıkarır."""
     try:
-        doc = fitz.open(file_path)
         images = []
         temp_dir = os.path.join(os.path.dirname(file_path), 'temp_images')
         os.makedirs(temp_dir, exist_ok=True)
         
-        for page_num in range(len(doc)):
-            page = doc[page_num]
+        # PyMuPDF ile PDF'i aç
+        pdf_document = fitz.open(file_path)
+        
+        for page_num in range(len(pdf_document)):
+            page = pdf_document[page_num]
             image_list = page.get_images()
             
             for img_index, img in enumerate(image_list):
                 xref = img[0]
-                pix = fitz.Pixmap(doc, xref)
-                if pix.n - pix.alpha < 4: 
-                    image_path = os.path.join(temp_dir, f'pdf_image_{page_num}_{img_index}.png')
-                    pix.save(image_path)
-                    images.append(image_path)
-                pix = None
-        doc.close()
+                base_image = pdf_document.extract_image(xref)
+                image_bytes = base_image["image"]
+                
+                # Resmi kaydet
+                image_path = os.path.join(temp_dir, f'pdf_image_{page_num}_{img_index}.png')
+                with open(image_path, 'wb') as image_file:
+                    image_file.write(image_bytes)
+                
+                # Resmi PIL ile aç ve boyutunu kontrol et
+                with PILImage.open(image_path) as img:
+                    width, height = img.size
+                    # Çok küçük resimleri (örn. ikonlar) atla
+                    if width > 100 and height > 100:
+                        images.append(image_path)
+        
+        pdf_document.close()
         return images
     except Exception as e:
+        print(f"PDF'ten resim çıkarılırken hata: {e}")
         return []
 
-def empty_page(canvas, doc):
-    canvas.saveState()
-    canvas.restoreState()
-
-def create_pdf_with_formatting(text, images, buffer, with_images=False):
-    """PDF'i istenen akademik/minimal formatta oluşturur."""
+def create_pdf_with_images(text, images, buffer):
+    """Metni ve resimleri PDF'e dönüştürür."""
     try:
-        page_width, page_height = A4
-        margin = 10 * mm 
-        
         doc = SimpleDocTemplate(
             buffer,
-            pagesize=A4,
-            rightMargin=margin,
-            leftMargin=margin,
-            topMargin=margin,
-            bottomMargin=margin
+            pagesize=letter,
+            rightMargin=30,
+            leftMargin=30,
+            topMargin=30,
+            bottomMargin=30
         )
 
-        usable_width = page_width - (2 * margin)
-        img_width = (usable_width / 3) - (3 * mm) 
-        img_height = (A4[1] - (2 * margin) - (10 * mm)) / 4 - (3 * mm)
-
         styles = getSampleStyleSheet()
-        # Yazı tipi: Times 12pt, satır aralığı 1.15 (13.8pt), iki yana yaslı
-        styles.add(ParagraphStyle(
+        normal_style = ParagraphStyle(
             'CustomNormal',
             parent=styles['Normal'],
-            # BURADA TimesNewRoman kullanılır
-            fontName='TimesNewRoman',
-            fontSize=12,
-            leading=13.8,  
-            alignment=TA_JUSTIFY, 
+            fontSize=11,
+            leading=14,
             spaceBefore=6,
             spaceAfter=6
-        ))
-        normal_style = styles['CustomNormal']
+        )
 
         story = []
-        
         paragraphs = text.split("\n\n")
+
+        # Önce metinleri ekle
         for paragraph in paragraphs:
             if paragraph.strip():
                 p = Paragraph(paragraph.strip(), normal_style)
                 story.append(p)
-                story.append(Spacer(1, 3)) 
+                story.append(Spacer(1, 10))
 
-        if with_images and images:
-            story.append(PageBreak())
+        # Sonra resimleri 3x3 grid olarak ekle (her sayfada 9 resim)
+        if images:
+            # Tekrarlanan resimleri engelle
+            unique_images = []
+            seen_images = set()
+            
+            for img_path in images:
+                # Resmin hash'ini al (boyut ve ilk birkaç byte'a bakarak)
+                try:
+                    with open(img_path, 'rb') as f:
+                        img_data = f.read()
+                        img_hash = hash(img_data[:1000])  # İlk 1000 byte'ı kullan
+                        if img_hash not in seen_images:
+                            seen_images.add(img_hash)
+                            unique_images.append(img_path)
+                except:
+                    continue
 
-            for i in range(0, len(images), 12):
-                table_data = [[], [], [], []] 
+            # Her sayfada 9 resim olacak şekilde grid oluştur
+            for i in range(0, len(unique_images), 9):
+                page_images = unique_images[i:i+9]
+                grid_data = []
+                for j in range(0, 9, 3):
+                    row = []
+                    for img_path in page_images[j:j+3]:
+                        try:
+                            img = Image(img_path)
+                            # Resim boyutunu büyüt
+                            img._restrictSize(3*inch, 3*inch)
+                            row.append(img)
+                        except:
+                            row.append('')
+                    # Eğer satırda 3'ten az resim varsa boş kutu ekle
+                    while len(row) < 3:
+                        row.append('')
+                    grid_data.append(row)
                 
-                for row in range(4):
-                    for col in range(3):
-                        idx = i + row * 3 + col
-                        if idx < len(images):
-                            img = Image(images[idx], width=img_width, height=img_height)
-                            table_data[row].append(img)
-                        else:
-                            table_data[row].append('')
-
-                table = Table(
-                    table_data,
-                    colWidths=[img_width + 2*mm] * 3, 
-                    rowHeights=[img_height + 2*mm] * 4
-                )
-                
+                table = Table(grid_data, colWidths=[3.2*inch]*3)
                 table.setStyle(TableStyle([
                     ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                     ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                    ('TOPPADDING', (0, 0), (-1, -1), 1*mm),
-                    ('BOTTOMPADDING', (0, 0), (-1, -1), 1*mm),
-                    ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-                    ('BOX', (0, 0), (-1, -1), 0.5, colors.black),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 5),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+                    ('TOPPADDING', (0, 0), (-1, -1), 5),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
                 ]))
-                
+                story.append(PageBreak())
                 story.append(table)
-                
-                if len(images) > i + 12:
-                    story.append(PageBreak())
 
-        doc.build(story, onFirstPage=empty_page, onLaterPages=empty_page) 
+        doc.build(story)
         return True
     except Exception as e:
+        print(f"PDF oluşturulurken hata: {e}")
         return str(e)
 
-def create_word_document(text, images, with_images=False):
-    """Word belgesi oluşturur ve kenar boşluklarını ayarlar."""
+def create_word_with_images(text, images, buffer):
+    """Metni ve resimleri Word dosyasına dönüştürür."""
     try:
         doc = Document()
-        
-        section = doc.sections[0]
-        margin_inch = 0.4 
-        section.top_margin = Inches(margin_inch)
-        section.bottom_margin = Inches(margin_inch)
-        section.left_margin = Inches(margin_inch)
-        section.right_margin = Inches(margin_inch)
-        
+        # Metinleri ekle
         paragraphs = text.split("\n\n")
         for paragraph in paragraphs:
             if paragraph.strip():
-                p = doc.add_paragraph(paragraph.strip())
-                p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-                p.style.font.name = 'Times New Roman'
-                p.style.font.size = 12
+                doc.add_paragraph(paragraph.strip())
         
-        if with_images and images:
-            doc.add_page_break()
+        # Sonra resimleri 3x3 grid olarak ekle (her sayfada 9 resim)
+        if images:
+            from docx.shared import Inches
+            # Tekrarlanan resimleri engelle
+            unique_images = []
+            seen_images = set()
             
-            for i in range(0, len(images), 12):
-                table = doc.add_table(rows=4, cols=3)
-                table.style = 'Table Grid'
-                
-                for row in range(4):
-                    for col in range(3):
-                        idx = i + row * 3 + col
-                        if idx < len(images):
-                            cell = table.cell(row, col)
-                            cell.text = f"Resim {idx + 1}"
-                
-                if len(images) > i + 12:
-                    doc.add_page_break()
-        
-        return doc
-    except Exception as e:
-        return str(e)
+            for img_path in images:
+                try:
+                    with open(img_path, 'rb') as f:
+                        img_data = f.read()
+                        img_hash = hash(img_data[:1000])
+                        if img_hash not in seen_images:
+                            seen_images.add(img_hash)
+                            unique_images.append(img_path)
+                except:
+                    continue
 
-# --- Django View Fonksiyonu (DEĞİŞMEDİ) ---
+            for i in range(0, len(unique_images), 9):
+                page_images = unique_images[i:i+9]
+                doc.add_page_break()
+                table = doc.add_table(rows=3, cols=3)
+                table.autofit = True
+                for idx, img_path in enumerate(page_images):
+                    row = idx // 3
+                    col = idx % 3
+                    cell = table.cell(row, col)
+                    try:
+                        run = cell.paragraphs[0].add_run()
+                        # Resim boyutunu büyüt
+                        run.add_picture(img_path, width=Inches(3))
+                    except:
+                        cell.text = ''
+        
+        doc.save(buffer)
+        return True
+    except Exception as e:
+        print(f"Word dosyası oluşturulurken hata: {e}")
+        return str(e)
 
 def home(request):
     if request.method == 'POST' and request.FILES['document']:
@@ -378,75 +310,60 @@ def home(request):
         fs = FileSystemStorage()
         name = fs.save(uploaded_file.name, uploaded_file)
         file_path = fs.path(name)
-        temp_dir = None
         
-        try:
-            with_images = request.POST.get('with_images') == 'true'
-            output_format = request.POST.get('output_format', 'pdf') 
-            text = ""
+        # Dosya uzantısını kontrol et
+        file_ext = os.path.splitext(name)[1].lower()
+        
+        # Çıktı formatını kontrol et
+        output_format = request.POST.get('output_format', 'pdf')
+        
+        # Resimli dönüştürme isteği mi kontrol et
+        with_images = request.POST.get('with_images', '') == 'true'
+        
+        # Dosya tipine göre metni çıkar
+        if file_ext in ['.doc', '.docx']:
+            text = extract_text_from_word(file_path)
             images = []
-            file_ext = os.path.splitext(name)[1].lower()
-            
-            if file_ext in ['.doc', '.docx']:
-                text = extract_text_from_word(file_path)
-                if with_images:
-                    temp_dir = os.path.join(fs.location, 'temp_images')
-                    os.makedirs(temp_dir, exist_ok=True)
-                    images = extract_images_from_word(file_path)
-            elif file_ext in ['.ppt', '.pptx']:
-                text = extract_text_from_powerpoint(file_path)
-                if with_images:
-                    temp_dir = os.path.join(fs.location, 'temp_images')
-                    os.makedirs(temp_dir, exist_ok=True)
-                    images = extract_images_from_powerpoint(file_path)
-            elif file_ext in ['.pdf']:
-                text = extract_text_from_pdf(file_path)
-                if with_images:
-                    temp_dir = os.path.join(fs.location, 'temp_images')
-                    os.makedirs(temp_dir, exist_ok=True)
-                    images = extract_images_from_pdf(file_path)
-
-            text = normalize_text(text)
-            
-            buffer = io.BytesIO()
-            output_name = request.POST.get('output_name', '').strip()
-            if not output_name:
-                output_name = os.path.splitext(name)[0]
-                
-            if output_format == 'word':
-                doc = create_word_document(text, images, with_images)
-                if isinstance(doc, str): 
-                    return HttpResponse(f"Word belgesi oluşturulurken hata oluştu: {doc}", status=500)
-                
-                doc.save(buffer)
-                buffer.seek(0)
-                
-                return FileResponse(
-                    buffer,
-                    as_attachment=True,
-                    filename=f"{output_name}.docx",
-                    content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-                )
-            else: # PDF
-                result = create_pdf_with_formatting(text, images, buffer, with_images)
-                
-                if result is True:
-                    buffer.seek(0)
-                    return FileResponse(
-                        buffer,
-                        as_attachment=True,
-                        filename=f"{output_name}.pdf",
-                        content_type='application/pdf'
-                    )
-                else:
-                    return HttpResponse(f"PDF oluşturulurken hata oluştu: {result}", status=500)
-            
-        finally:
+        elif file_ext in ['.ppt', '.pptx']:
+            text = extract_text_from_powerpoint(file_path)
+            images = extract_images_from_powerpoint(file_path) if with_images else []
+        elif file_ext == '.pdf':
+            text = extract_text_from_pdf(file_path)
+            images = extract_images_from_pdf(file_path) if with_images else []
+        else:
             fs.delete(name)
-            if temp_dir and os.path.exists(temp_dir):
+            return HttpResponse("Desteklenmeyen dosya formatı. Lütfen Word (.doc, .docx), PowerPoint (.ppt, .pptx) veya PDF (.pdf) dosyası yükleyin.", status=400)
+        
+        # Çıktı formatına göre dönüştür
+        buffer = io.BytesIO()
+        if output_format == 'pdf':
+            result = create_pdf_with_images(text, images, buffer)
+            content_type = 'application/pdf'
+            file_extension = 'pdf'
+        else:  # word
+            result = create_word_with_images(text, images, buffer)
+            content_type = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            file_extension = 'docx'
+        
+        # Geçici dosyaları temizle
+        fs.delete(name)
+        if 'temp_dir' in locals():
+            for img_path in images:
                 try:
-                    shutil.rmtree(temp_dir, ignore_errors=True)
+                    os.remove(img_path)
                 except:
                     pass
-                
-    return render(request, 'converter/home.html')
+            try:
+                os.rmdir(os.path.dirname(images[0]))
+            except:
+                pass
+        
+        if result is True:
+            buffer.seek(0)
+            response = FileResponse(buffer, as_attachment=True, filename=f'converted.{file_extension}')
+            response['Content-Type'] = content_type
+            return response
+        else:
+            return HttpResponse(f"Dönüştürme sırasında bir hata oluştu: {result}", status=500)
+    
+    return render(request, 'converter/home.html', {'range': range(9)})

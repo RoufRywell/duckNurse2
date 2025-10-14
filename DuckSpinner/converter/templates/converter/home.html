@@ -4,288 +4,246 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DuckSpinner - Hemşirelik için Slayt Metin Toplayıcı</title>
+    <title>HelloKitty Spinner - Office to PDF Dönüştürücü</title>
     <style>
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
+            font-family: 'Poppins', 'Segoe UI', Tahoma, sans-serif;
             margin: 0;
             padding: 20px;
-            background: radial-gradient(1200px 600px at 10% -10%, #ffe5ec 0%, rgba(255, 229, 236, 0) 60%),
-                        radial-gradient(1000px 500px at 110% 20%, #e0f7fa 0%, rgba(224, 247, 250, 0) 55%),
-                        linear-gradient(135deg, #f8f9ff 0%, #e8faff 100%);
-            color: #3e4a59;
+            background: linear-gradient(135deg, #ffe6f0 0%, #fff5fa 100%);
+            color: #444;
             overflow-x: hidden;
         }
-        .love-title { display: none; }
-        .heart {
+
+        /* Arka plan animasyonları */
+        #hearts-and-bubbles div {
             position: fixed;
-            font-size: 1.5em;
-            animation: float-heart 12s ease-in-out infinite;
-            opacity: 0.8;
             z-index: -1;
-            will-change: transform, opacity;
-        }
-        .bubble {
-            position: fixed;
-            font-size: 1.2em;
-            animation: float-bubble 15s ease-in-out infinite;
             opacity: 0.6;
-            z-index: -1;
+            font-size: 1em;
             will-change: transform, opacity;
         }
-        .animal {
-            position: fixed;
-            font-size: 1.8em;
-            animation: float-animal 18s ease-in-out infinite;
-            opacity: 0.9;
-            z-index: -1;
-            filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.3));
-            will-change: transform;
-        }
-        @keyframes float-heart {
-            0% { transform: translateY(100vh) rotate(0deg); opacity: 0.8; }
-            100% { transform: translateY(-100px) rotate(360deg); opacity: 0; }
-        }
-        @keyframes float-bubble {
-            0% { transform: translateY(100vh) translateX(0) scale(1); opacity: 0.6; }
-            50% { transform: translateY(50vh) translateX(100px) scale(1.2); }
-            100% { transform: translateY(-100px) translateX(0) scale(1); opacity: 0; }
-        }
-        @keyframes float-animal {
-            0% { transform: translateY(100vh) translateX(-50px) rotate(0deg); opacity: 0.9; }
-            25% { transform: translateY(75vh) translateX(50px) rotate(15deg); }
-            50% { transform: translateY(50vh) translateX(-50px) rotate(-15deg); }
-            75% { transform: translateY(25vh) translateX(50px) rotate(15deg); }
-            100% { transform: translateY(-100px) translateX(-50px) rotate(0deg); opacity: 0; }
-        }
+
         .container {
             max-width: 600px;
-            margin: 0 auto;
-            background-color: rgba(255, 255, 255, 0.86);
+            margin: 60px auto;
+            background-color: rgba(255, 255, 255, 0.95);
             padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(233, 30, 99, 0.08), 0 8px 24px rgba(0, 0, 0, 0.08);
-            backdrop-filter: blur(6px);
-            border: 1px solid rgba(233, 30, 99, 0.12);
+            border-radius: 20px;
+            box-shadow: 0 8px 25px rgba(255, 182, 193, 0.3);
+            backdrop-filter: blur(8px);
+            position: relative;
+            z-index: 1;
         }
+
         .logo-container {
             text-align: center;
             margin-bottom: 20px;
+            position: relative;
+            z-index: 2;
         }
-        .duck-icon {
-            font-size: 3em;
-            margin-bottom: 10px;
-            animation: float 3s ease-in-out infinite;
-            display: inline-block;
-        }
-        .duck-icon img {
-            width: 180px;
-            height: 180px;
+
+        .kitty-icon {
+            width: 150px;
+            height: 150px;
             object-fit: contain;
-            filter: drop-shadow(0 10px 18px rgba(0,0,0,0.18));
+            animation: float-kitty 3s ease-in-out infinite;
+            filter: drop-shadow(0 0 15px #ff69b4);
+            border-radius: 50%;
+            transition: transform 0.3s, filter 0.3s;
+            z-index: 3;
         }
-        @keyframes float {
-            0% { transform: translateY(0px); }
+        .kitty-icon:hover {
+            transform: scale(1.15) rotate(-5deg);
+            filter: drop-shadow(0 0 25px #ff85c2);
+        }
+
+        @keyframes float-kitty {
+            0% { transform: translateY(0); }
             50% { transform: translateY(-10px); }
-            100% { transform: translateY(0px); }
+            100% { transform: translateY(0); }
         }
+
         h1 {
             text-align: center;
-            color: #4d5057;
-            margin-bottom: 30px;
-            font-size: 2.5em;
-            text-shadow: 0 1px 0 #fff;
+            color: #ff69b4;
+            font-size: 2.2em;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 6px rgba(255, 192, 203, 0.6);
         }
+
         .description {
             text-align: center;
-            color: #6b7a8f;
-            margin: 20px 0;
-            font-size: 0.9em;
+            color: #777;
+            margin-bottom: 25px;
+            font-size: 0.95em;
         }
+
         .supported-formats {
-            background-color: rgba(255, 182, 193, 0.25);
-            padding: 15px;
-            border-radius: 8px;
-            margin: 20px 0;
+            background-color: #ffeaf2;
+            padding: 12px;
+            border-radius: 10px;
             text-align: center;
-            border: 1px dashed rgba(233, 30, 99, 0.3);
         }
+
         .format-badge {
             display: inline-block;
-            background-color: rgba(255, 255, 255, 0.8);
-            color: #4d5057;
-            padding: 5px 12px;
+            background-color: #ffb6c1;
+            color: white;
+            padding: 6px 14px;
             border-radius: 15px;
-            margin: 5px;
-            font-size: 0.9em;
-            transition: transform 0.2s, background-color 0.2s;
-            border: 1px solid rgba(233, 30, 99, 0.25);
+            margin: 4px;
+            font-size: 0.85em;
+            transition: all 0.3s;
         }
+
         .format-badge:hover {
+            background-color: #ff99bb;
             transform: translateY(-2px);
-            background-color: rgba(255, 255, 255, 1);
         }
+
         .file-input-container {
-            margin-bottom: 20px;
-            background-color: rgba(255, 255, 255, 0.7);
+            margin-top: 25px;
+            background-color: #fff0f6;
             padding: 20px;
-            border-radius: 10px;
-            border: 2px dashed rgba(233, 30, 99, 0.25);
+            border-radius: 12px;
+            border: 2px dashed #ffb6c1;
             transition: border-color 0.3s;
             text-align: center;
         }
+
         .file-input-container:hover {
-            border-color: #ff8fab;
+            border-color: #ff69b4;
         }
+
         .file-label {
-            background-color: #ff8fab;
-            color: #5a001f;
+            background-color: #ffb6c1;
+            color: #fff;
             padding: 12px 24px;
-            border-radius: 5px;
+            border-radius: 6px;
             cursor: pointer;
             display: inline-block;
             transition: all 0.3s;
-            box-shadow: 0 6px 12px rgba(255, 143, 171, 0.28);
+            font-weight: 500;
         }
+
         .file-label:hover {
-            background-color: #ff7096;
+            background-color: #ff8fb1;
             transform: translateY(-2px);
         }
+
         input[type="file"] {
             display: none;
         }
+
         .selected-file {
             margin-top: 10px;
-            color: #6b7a8f;
+            color: #777;
             font-size: 0.9em;
         }
-        .submit-btn {
-            background-image: linear-gradient(135deg, #91f2e9 0%, #77ddf3 50%, #b8f1ff 100%);
-            color: #184e77;
-            padding: 15px 30px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: bold;
-            transition: all 0.3s;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            width: 100%;
-            max-width: 300px;
-            display: block;
-            margin: 20px auto;
-            box-shadow: 0 8px 20px rgba(0, 175, 185, 0.25);
-        }
-        .btn-primary { background-image: linear-gradient(135deg, #91f2e9 0%, #77ddf3 50%, #b8f1ff 100%); color: #184e77; }
-        .btn-pink { background-image: linear-gradient(135deg, #ffd6e0 0%, #ffb3c1 60%, #ff8fab 100%); color: #5a001f; box-shadow: 0 8px 20px rgba(255, 143, 171, 0.25); }
-        .submit-btn:hover {
-            filter: brightness(1.05);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-        }
-        .submit-btn:active {
-            transform: translateY(0);
-        }
+
         .output-name-container {
             margin-top: 20px;
-            background-color: rgba(255, 255, 255, 0.7);
+            background-color: #fff0f6;
             padding: 15px;
             border-radius: 8px;
             text-align: center;
-            border: 1px solid rgba(233, 30, 99, 0.18);
         }
+
         .output-name-label {
             display: block;
             margin-bottom: 8px;
-            color: #6b7a8f;
+            color: #666;
+            font-weight: 500;
         }
+
         .output-name-input {
             width: 100%;
             max-width: 300px;
             padding: 10px;
-            border: 2px solid rgba(233, 30, 99, 0.18);
-            border-radius: 5px;
-            background-color: rgba(255, 255, 255, 0.9);
-            color: #4d5057;
+            border: 2px solid #ffb6c1;
+            border-radius: 6px;
+            background-color: #fff;
+            color: #444;
             font-size: 14px;
             transition: all 0.3s;
         }
+
         .output-name-input:focus {
             outline: none;
-            border-color: #ff8fab;
-            box-shadow: 0 0 5px rgba(255, 143, 171, 0.3);
+            border-color: #ff69b4;
+            box-shadow: 0 0 5px rgba(255, 105, 180, 0.4);
         }
-        .message-box {
-            position: fixed;
-            width: 316px;
-            background-color: rgba(255, 255, 255, 0.92);
-            padding: 32px;
-            border-radius: 24px;
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
-            text-align: center;
-            z-index: 1000;
-            top: 50%;
-            transform: translateY(-50%);
-            border: 3px solid #ff8fab;
-        }
-        .message-box.left {
-            left: 50px;
-        }
-        .message-box.right {
-            right: 50px;
-        }
-        .mascot {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-            margin-bottom: 16px;
-        }
-        .mascot .badge {
-            background: #ff8fab;
-            color: #5a001f;
-            padding: 6px 12px;
-            border-radius: 999px;
+
+        .submit-btn {
+            background-color: #ff69b4;
+            color: white;
+            padding: 14px 30px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
             font-weight: 600;
-            box-shadow: 0 4px 10px rgba(255, 143, 171, 0.28);
-            border: 1px solid rgba(90, 0, 31, 0.1);
+            transition: all 0.3s;
+            width: 100%;
+            max-width: 300px;
+            display: block;
+            margin: 25px auto;
         }
-        .mascot img {
-            width: 110px;
-            height: 110px;
-            object-fit: contain;
-            filter: drop-shadow(0 8px 16px rgba(0,0,0,0.15));
-            border-radius: 12px;
-            background: rgba(255,255,255,0.6);
-            padding: 6px;
+
+        .submit-btn:hover {
+            background-color: #ff85c2;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 105, 180, 0.25);
         }
-        .kawaii-strip {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            margin: 6px 0 14px;
-            color: #ff6f91;
-            font-weight: 700;
-            font-size: 1.1rem;
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+        .switch input {display:none;}
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #ff69b4;
+        }
+        input:checked + .slider:before {
+            transform: translateX(26px);
         }
     </style>
 </head>
 <body>
     <div id="hearts-and-bubbles"></div>
-    <h1 class="love-title">❤️ ARIM BALIM ASUDEM ❤️</h1>
+
     <div class="container">
         <div class="logo-container">
-            <div class="duck-icon"><img src="{% static 'converter/images/nurse-duck.png.png' %}" alt="Hemşire Ördek" /></div>
-            <h1>DuckSpinner</h1>
-            <div class="kawaii-strip">🩺</div>
-            
+            <img src="{% static 'converter/images/hello_kitty_maskot_yildizli.jpg' %}" alt="Hello Kitty" class="kitty-icon">
+            <h1>HelloKitty Spinner</h1>
         </div>
+
         <div class="description">
-            Office dosyalarınızı kolayca PDF'e dönüştürün
+            Office dosyalarınızı kolayca PDF'e dönüştürün 💗
         </div>
+
         <div class="supported-formats">
             <span class="format-badge">.docx</span>
             <span class="format-badge">.doc</span>
@@ -293,91 +251,80 @@
             <span class="format-badge">.ppt</span>
             <span class="format-badge">.pdf</span>
         </div>
+
         <form class="upload-form" method="post" enctype="multipart/form-data">
             {% csrf_token %}
             <div class="file-input-container">
-                <input type="file" name="document" accept=".doc,.docx,.ppt,.pptx,.pdf,.PDF,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation" required id="file-upload">
+                <input type="file" name="document" accept=".doc,.docx,.ppt,.pptx,.pdf" required id="file-upload">
                 <label for="file-upload" class="file-label">Dosya Seç</label>
                 <div class="selected-file" id="file-name"></div>
             </div>
+
             <div class="output-name-container">
-                <label for="output-name" class="output-name-label">Dosya Adı</label>
-                <input type="text" name="output_name" id="output-name" class="output-name-input" placeholder="Örnek: rapor">
+                <label for="output-name" class="output-name-label">Çıktı Dosya Adı</label>
+                <input type="text" name="output_name" id="output-name" class="output-name-input" placeholder="örnek: rapor">
             </div>
-            <div class="output-format-container" style="margin-top: 20px; background-color: rgba(255, 255, 255, 0.7); padding: 15px; border-radius: 8px; text-align: center; border: 1px solid rgba(233, 30, 99, 0.18);">
-                <label class="output-name-label">Çıktı Formatı</label>
-                <div style="display: flex; justify-content: center; gap: 20px; margin-top: 10px;">
-                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
-                        <input type="radio" name="output_format" value="pdf" checked style="margin: 0;">
-                        <span>PDF</span>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
-                        <input type="radio" name="output_format" value="word" style="margin: 0;">
-                        <span>Word</span>
-                    </label>
-                </div>
+
+            <div style="margin: 20px 0; text-align: center;">
+                <label style="margin-right: 10px; font-weight: 500;">Çıktı Türü:</label>
+                <label class="switch">
+                    <input type="checkbox" id="output_format_switch" name="output_format" value="word">
+                    <span class="slider round"></span>
+                </label>
+                <span id="output_format_label">PDF</span>
             </div>
-            <div class="button-container" style="display: flex; justify-content: center; gap: 20px; margin-top: 20px;">
-                <button type="submit" class="submit-btn btn-primary" style="margin: 0;" onclick="this.form.with_images.value='false'">
-                    <span style="display: block;">Normal Dönüştür</span>
-                    <span style="font-size: 0.8em; display: block;">(Sadece Metin)</span>
-                </button>
-                <button type="submit" class="submit-btn btn-pink" style="margin: 0;" onclick="this.form.with_images.value='true'">
-                    <span style="display: block;">Resimli Dönüştür</span>
-                    <span style="font-size: 0.8em; display: block;">(Resim + Metin)</span>
-                </button>
+
+            <div style="margin: 20px 0; text-align: center;">
+                <input type="checkbox" id="with_images" name="with_images" value="true">
+                <label for="with_images">Resimli Dönüştür</label>
             </div>
-            <input type="hidden" name="with_images" value="false" id="with_images">
+
+            <button type="submit" class="submit-btn">Dönüştür</button>
         </form>
     </div>
 
     <script>
+        // Dosya seçildiğinde isim gösterme
         document.getElementById('file-upload').addEventListener('change', function(e) {
             var fileName = e.target.files[0] ? e.target.files[0].name : 'Dosya seçilmedi';
             document.getElementById('file-name').textContent = fileName;
-            
             if (e.target.files[0]) {
                 var suggestedName = e.target.files[0].name.replace(/\.[^/.]+$/, "");
                 document.getElementById('output-name').value = suggestedName;
             }
         });
 
-        // Kalp, balon ve hayvan animasyonları için script
-        function createHeartsAndBubbles() {
+        // Çıktı format switch
+        document.getElementById('output_format_switch').addEventListener('change', function() {
+            var label = document.getElementById('output_format_label');
+            if(this.checked) {
+                this.value = 'word';
+                label.textContent = 'Word';
+            } else {
+                this.value = 'pdf';
+                label.textContent = 'PDF';
+            }
+        });
+
+        // Arka plan hemşirelik temalı animasyon
+        function createNurseAnimations() {
             const container = document.getElementById('hearts-and-bubbles');
-            const symbols = {
-                heart: ['❤️', '💕', '💝'],
-                bubble: ['🎀', '💫', '✨'],
-                animal: ['🐇', '🦆', '🐣', '🦢']
-            };
-            
+            const symbols = ['🩺','🦋','💉','👩‍⚕️','🧴','💗'];
             setInterval(() => {
                 const symbol = document.createElement('div');
-                const type = Math.random() < 0.4 ? 'heart' : (Math.random() < 0.7 ? 'bubble' : 'animal');
-                const symbolArray = symbols[type];
-                symbol.textContent = symbolArray[Math.floor(Math.random() * symbolArray.length)];
-                
-                if (type === 'animal') {
-                    symbol.style.fontSize = '1.8em';
-                } else if (type === 'bubble') {
-                    symbol.style.fontSize = '1.4em';
-                } else {
-                    symbol.style.fontSize = '1.5em';
-                }
-                
-                symbol.className = type;
+                symbol.textContent = symbols[Math.floor(Math.random() * symbols.length)];
                 symbol.style.left = Math.random() * 100 + 'vw';
-                symbol.style.animationDuration = (12 + Math.random() * 8) + 's';
+                symbol.style.fontSize = (0.8 + Math.random() * 1.5) + 'em';
                 container.appendChild(symbol);
-                
-                setTimeout(() => {
-                    symbol.remove();
-                }, 20000);
+                const duration = 12 + Math.random() * 8;
+                symbol.animate([
+                    { transform: `translateY(100vh)` },
+                    { transform: `translateY(-50px)` }
+                ], { duration: duration * 1000, easing: 'linear' });
+                setTimeout(() => symbol.remove(), duration * 1000);
             }, 800);
         }
-
-        // Animasyonları hemen başlat
-        createHeartsAndBubbles();
+        createNurseAnimations();
     </script>
 </body>
-</html> 
+</html>
